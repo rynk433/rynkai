@@ -1,5 +1,6 @@
 export { Client } from './core/Client';
 export { FileSessionStore } from './session/FileSessionStore';
+export { MongoSessionStore } from './session/MongoSessionStore';
 export { MessageBuilder } from './message/MessageBuilder';
 export { PluginLoader } from './plugin/PluginLoader';
 export { RateLimiter } from './core/RateLimiter';
