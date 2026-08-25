@@ -19,3 +19,4 @@ export type {
 export type { Middleware, NextFunction } from './core/Middleware';
 export type { RateLimitConfig } from './core/RateLimiter';
 export type { SendQueueConfig } from './core/SendQueue';
+export type { GroupParticipantsEvent, RynkaiEvents } from './core/Client';

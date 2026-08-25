@@ -3,6 +3,9 @@ import makeWASocket, {
   fetchLatestBaileysVersion,
   type WASocket,
   type AnyMessageContent,
+  type WAPresence,
+  type GroupMetadata,
+  type ParticipantAction,
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import { EventEmitter } from 'events';
@@ -17,12 +20,19 @@ import { RateLimiter } from './RateLimiter';
 import { SendQueue } from './SendQueue';
 import { downloadMedia } from '../media/downloadMedia';
 
+export interface GroupParticipantsEvent {
+  groupId: string;
+  action: ParticipantAction;
+  participants: string[];
+}
+
 export interface RynkaiEvents {
   ready: () => void;
   message: (msg: NormalizedMessage) => void;
   disconnected: (reason: string) => void;
   qr: (qr: string) => void;
   pairingCode: (code: string) => void;
+  'group-participants-update': (event: GroupParticipantsEvent) => void;
 }
 
 /**
@@ -127,6 +137,14 @@ export class Client extends EventEmitter {
         await this.dispatchPlugin(message);
       }
     });
+
+    this.sock.ev.on('group-participants.update', (event) => {
+      this.emit('group-participants-update', {
+        groupId: event.id,
+        action: event.action,
+        participants: event.participants,
+      });
+    });
   }
 
   /** Cocokkan pesan terhadap prefix & jalankan plugin yang sesuai, kalau ada. */
@@ -177,6 +195,53 @@ export class Client extends EventEmitter {
   async downloadMedia(message: NormalizedMessage): Promise<Buffer> {
     if (!this.sock) throw new Error('Client belum connect. Panggil connect() dulu.');
     return downloadMedia(message, this.sock, this.logger);
+  }
+
+  /** Update presence (online/typing/recording/dst) di sebuah chat. */
+  async sendPresence(chatId: string, presence: WAPresence): Promise<void> {
+    if (!this.sock) throw new Error('Client belum connect. Panggil connect() dulu.');
+    await this.sock.sendPresenceUpdate(presence, chatId);
+  }
+
+  /**
+   * Tampilkan indikator "sedang mengetik" di sebuah chat selama `durationMs`,
+   * lalu otomatis kembali ke status paused. Default durasi 1000ms.
+   */
+  async sendTyping(chatId: string, durationMs = 1000): Promise<void> {
+    if (!this.sock) throw new Error('Client belum connect. Panggil connect() dulu.');
+    await this.sock.sendPresenceUpdate('composing', chatId);
+    await new Promise((r) => setTimeout(r, durationMs));
+    await this.sock.sendPresenceUpdate('paused', chatId);
+  }
+
+  /** Ambil metadata sebuah grup (nama, deskripsi, daftar participant, admin, dst). */
+  async getGroupMetadata(groupId: string): Promise<GroupMetadata> {
+    if (!this.sock) throw new Error('Client belum connect. Panggil connect() dulu.');
+    return this.sock.groupMetadata(groupId);
+  }
+
+  /** Tambah participant ke grup. */
+  async addParticipants(groupId: string, participants: string[]): Promise<void> {
+    if (!this.sock) throw new Error('Client belum connect. Panggil connect() dulu.');
+    await this.sock.groupParticipantsUpdate(groupId, participants, 'add');
+  }
+
+  /** Keluarkan participant dari grup. */
+  async removeParticipants(groupId: string, participants: string[]): Promise<void> {
+    if (!this.sock) throw new Error('Client belum connect. Panggil connect() dulu.');
+    await this.sock.groupParticipantsUpdate(groupId, participants, 'remove');
+  }
+
+  /** Jadikan participant admin grup. */
+  async promoteParticipants(groupId: string, participants: string[]): Promise<void> {
+    if (!this.sock) throw new Error('Client belum connect. Panggil connect() dulu.');
+    await this.sock.groupParticipantsUpdate(groupId, participants, 'promote');
+  }
+
+  /** Turunkan admin grup jadi member biasa. */
+  async demoteParticipants(groupId: string, participants: string[]): Promise<void> {
+    if (!this.sock) throw new Error('Client belum connect. Panggil connect() dulu.');
+    await this.sock.groupParticipantsUpdate(groupId, participants, 'demote');
   }
 
   /** Logout & bersihkan sesi tersimpan. */

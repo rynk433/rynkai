@@ -62,6 +62,33 @@ await bot.plugins.loadFromDirectory('./plugins');
 await bot.connect();
 ```
 
+## Presence (typing / online status)
+
+```ts
+await bot.sendTyping(msg.chatId);              // "sedang mengetik..." selama 1 detik
+await bot.sendTyping(msg.chatId, 3000);         // custom durasi
+await bot.sendPresence(msg.chatId, 'available'); // online / unavailable / recording / dst
+```
+
+## Group helpers
+
+```ts
+const info = await bot.getGroupMetadata(groupId);
+console.log(info.subject, info.participants.length);
+
+await bot.addParticipants(groupId, ['628123456789@s.whatsapp.net']);
+await bot.removeParticipants(groupId, ['628123456789@s.whatsapp.net']);
+await bot.promoteParticipants(groupId, ['628123456789@s.whatsapp.net']);
+await bot.demoteParticipants(groupId, ['628123456789@s.whatsapp.net']);
+
+bot.on('group-participants-update', ({ groupId, action, participants }) => {
+  // action: 'add' | 'remove' | 'promote' | 'demote'
+  if (action === 'add') {
+    console.log(`${participants.join(', ')} join ke grup ${groupId}`);
+  }
+});
+```
+
 ## Download media
 
 ```ts
@@ -175,9 +202,9 @@ Masih tahap awal (0.1.0). Yang sudah ada:
 - [x] Built-in MongoSessionStore
 - [x] Media downloader helper (`client.downloadMedia()`)
 - [x] Message send queue dengan throttle (anti rate-limit WA)
+- [x] Presence helper (`sendTyping`, `sendPresence`)
+- [x] Group helpers (metadata, add/remove/promote/demote, join-leave event)
 
 Belum ada (rencana selanjutnya):
 - [ ] Test suite
 - [ ] Interactive messages (button, list, poll)
-- [ ] Presence helper (typing, online status)
-- [ ] Group helpers (metadata, add/remove participant, join/leave event)
