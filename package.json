@@ -3,6 +3,9 @@
   "version": "0.1.5",
   "description": "Clean, typed wrapper around Baileys with built-in plugin system and pluggable session store — for building WhatsApp bots fast.",
   "main": "dist/index.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "types": "dist/index.d.ts",
   "type": "commonjs",
   "scripts": {
