@@ -1,0 +1,5 @@
+node_modules/
+dist/
+.rynkai-sessions/
+*.log
+.env
