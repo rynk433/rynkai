@@ -146,36 +146,23 @@ const bot = new Client({
 
 Kalau user kelebihan limit, bot otomatis reply pemberitahuan dan command tidak diteruskan ke middleware/plugin.
 
-## Session store custom (misal MongoDB)
+## Session store custom
 
-Sudah disediakan `MongoSessionStore` built-in — cocok kalau stack-mu (kayak rynk4) sudah pakai MongoDB/Mongoose:
-
-```bash
-npm install mongoose
-```
-
-```ts
-import mongoose from 'mongoose';
-import { Client, MongoSessionStore } from 'rynkai';
-
-await mongoose.connect(process.env.MONGO_URI!); // buka koneksi dulu sebelum connect()
-
-const bot = new Client({
-  sessionName: 'my-bot',
-  sessionStore: new MongoSessionStore('my-bot'),
-});
-```
-
-Kalau butuh store lain (Redis, dll), tinggal implement interface `SessionStore` yang sama:
+Default-nya pakai `FileSessionStore` (simpan sesi sebagai file di disk). Kalau butuh store lain (MongoDB, Redis, dll), tinggal implement interface `SessionStore`:
 
 ```ts
 import type { SessionStore } from 'rynkai';
 
-class RedisSessionStore implements SessionStore {
+class MySessionStore implements SessionStore {
   async load() { /* ... */ }
   async save(state) { /* ... */ }
   async clear() { /* ... */ }
 }
+
+const bot = new Client({
+  sessionName: 'my-bot',
+  sessionStore: new MySessionStore(),
+});
 ```
 
 ## Pairing code (tanpa QR)
@@ -199,7 +186,6 @@ Masih tahap awal (0.1.0). Yang sudah ada:
 - [x] MessageBuilder helper
 - [x] Middleware/hooks sebelum plugin dieksekusi
 - [x] Rate limiter global (terpisah dari cooldown per-plugin)
-- [x] Built-in MongoSessionStore
 - [x] Media downloader helper (`client.downloadMedia()`)
 - [x] Message send queue dengan throttle (anti rate-limit WA)
 - [x] Presence helper (`sendTyping`, `sendPresence`)
