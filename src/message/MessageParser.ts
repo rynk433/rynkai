@@ -16,6 +16,7 @@ function detectType(msg: proto.IMessage | null | undefined): NormalizedMessageTy
   if (msg.locationMessage) return 'location';
   if (msg.contactMessage) return 'contact';
   if (msg.reactionMessage) return 'reaction';
+  if (msg.pollCreationMessage || msg.pollCreationMessageV2 || msg.pollCreationMessageV3) return 'poll';
   return 'unknown';
 }
 

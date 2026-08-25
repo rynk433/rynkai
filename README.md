@@ -38,8 +38,6 @@ await bot.connect();
 
 ## Plugin system
 
-Plugin format-nya sengaja mirip gaya rynk4: `{ name, command, category, execute() }`.
-
 ```ts
 // plugins/hello.ts
 import type { Plugin } from 'rynkai';
@@ -88,6 +86,44 @@ bot.on('group-participants-update', ({ groupId, action, participants }) => {
   }
 });
 ```
+
+## Interactive messages (button, list, poll)
+
+```ts
+import { MessageBuilder } from 'rynkai';
+
+// Poll
+await bot.send(chatId, MessageBuilder.poll('Makan apa nanti?', ['Nasi goreng', 'Mie ayam', 'Sate'], 1));
+
+// Buttons
+await bot.send(
+  chatId,
+  MessageBuilder.buttons(
+    'Pilih menu:',
+    [
+      { id: 'menu_profile', text: 'Profil' },
+      { id: 'menu_shop', text: 'Shop' },
+    ],
+    'Bot Footer'
+  )
+);
+
+// List
+await bot.send(
+  chatId,
+  MessageBuilder.list('Pilih kategori:', 'Buka Menu', [
+    {
+      title: 'Kategori Utama',
+      rows: [
+        { id: 'cat_weapon', title: 'Senjata', description: 'Lihat semua senjata' },
+        { id: 'cat_armor', title: 'Armor', description: 'Lihat semua armor' },
+      ],
+    },
+  ])
+);
+```
+
+> Catatan: dukungan `buttons()` dan `list()` bervariasi antar versi WhatsApp client — beberapa versi terbaru membatasi tombol non-template dari akun biasa. Tes dulu di device tujuan sebelum diandalkan penuh di production; `poll()` jauh lebih stabil karena native feature WhatsApp.
 
 ## Download media
 
@@ -175,22 +211,3 @@ const bot = new Client({
 
 bot.on('pairingCode', (code) => console.log('Kode pairing:', code));
 ```
-
-## Status
-
-Masih tahap awal (0.1.0). Yang sudah ada:
-- [x] Core client (connect, reconnect, QR/pairing code)
-- [x] Normalized message parsing (text, media, quoted)
-- [x] Plugin loader + cooldown
-- [x] FileSessionStore default
-- [x] MessageBuilder helper
-- [x] Middleware/hooks sebelum plugin dieksekusi
-- [x] Rate limiter global (terpisah dari cooldown per-plugin)
-- [x] Media downloader helper (`client.downloadMedia()`)
-- [x] Message send queue dengan throttle (anti rate-limit WA)
-- [x] Presence helper (`sendTyping`, `sendPresence`)
-- [x] Group helpers (metadata, add/remove/promote/demote, join-leave event)
-
-Belum ada (rencana selanjutnya):
-- [ ] Test suite
-- [ ] Interactive messages (button, list, poll)

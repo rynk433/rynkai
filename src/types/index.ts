@@ -11,6 +11,7 @@ export type NormalizedMessageType =
   | 'location'
   | 'contact'
   | 'reaction'
+  | 'poll'
   | 'unknown';
 
 export interface NormalizedMessage {
