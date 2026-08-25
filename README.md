@@ -38,6 +38,8 @@ await bot.connect();
 
 ## Plugin system
 
+Plugin format-nya sengaja mirip gaya rynk4: `{ name, command, category, execute() }`.
+
 ```ts
 // plugins/hello.ts
 import type { Plugin } from 'rynkai';
@@ -211,3 +213,33 @@ const bot = new Client({
 
 bot.on('pairingCode', (code) => console.log('Kode pairing:', code));
 ```
+
+## Testing
+
+```bash
+npm test          # run sekali
+npm run test:watch # mode watch
+```
+
+Test coverage saat ini: `MessageParser`, `PluginLoader` (termasuk cooldown), `RateLimiter`, `Middleware` (compose/onion), `SendQueue`.
+
+## Status
+
+Masih tahap awal (0.1.0). Yang sudah ada:
+- [x] Core client (connect, reconnect, QR/pairing code)
+- [x] Normalized message parsing (text, media, quoted)
+- [x] Plugin loader + cooldown
+- [x] FileSessionStore default
+- [x] MessageBuilder helper
+- [x] Middleware/hooks sebelum plugin dieksekusi
+- [x] Rate limiter global (terpisah dari cooldown per-plugin)
+- [x] Media downloader helper (`client.downloadMedia()`)
+- [x] Message send queue dengan throttle (anti rate-limit WA)
+- [x] Presence helper (`sendTyping`, `sendPresence`)
+- [x] Group helpers (metadata, add/remove/promote/demote, join-leave event)
+- [x] Interactive messages (button, list, poll)
+- [x] Test suite (MessageParser, PluginLoader, RateLimiter, Middleware, SendQueue)
+
+Belum ada (rencana selanjutnya):
+- [ ] CLI scaffold (`npx create-rynkai-bot`)
+- [ ] GitHub Actions CI (auto build+test tiap push)

@@ -3,3 +3,4 @@ dist/
 .rynkai-sessions/
 *.log
 .env
+coverage/
