@@ -1,6 +1,6 @@
 {
   "name": "rynkai",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Clean, typed wrapper around Baileys with built-in plugin system and pluggable session store — for building WhatsApp bots fast.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -10,7 +10,13 @@
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "prepublishOnly": "npm run build"
   },
-  "keywords": ["whatsapp", "bot", "baileys", "wrapper", "plugin"],
+  "keywords": [
+    "whatsapp",
+    "bot",
+    "baileys",
+    "wrapper",
+    "plugin"
+  ],
   "license": "MIT",
   "author": "rynk",
   "repository": {
@@ -39,5 +45,7 @@
     "ts-node-dev": "^2.0.0",
     "@types/node": "^20.14.0"
   },
-  "files": ["dist"]
+  "files": [
+    "dist"
+  ]
 }
