@@ -14,6 +14,8 @@ import { parseMessage } from '../message/MessageParser';
 import { PluginLoader } from '../plugin/PluginLoader';
 import { compose, type Middleware } from './Middleware';
 import { RateLimiter } from './RateLimiter';
+import { SendQueue } from './SendQueue';
+import { downloadMedia } from '../media/downloadMedia';
 
 export interface RynkaiEvents {
   ready: () => void;
@@ -32,12 +34,13 @@ export class Client extends EventEmitter {
   public sock: WASocket | null = null;
   public readonly plugins = new PluginLoader();
 
-  private config: Required<Omit<RynkaiConfig, 'pairingCode' | 'sessionStore' | 'rateLimit'>> &
-    Pick<RynkaiConfig, 'pairingCode' | 'sessionStore' | 'rateLimit'>;
+  private config: Required<Omit<RynkaiConfig, 'pairingCode' | 'sessionStore' | 'rateLimit' | 'sendQueue'>> &
+    Pick<RynkaiConfig, 'pairingCode' | 'sessionStore' | 'rateLimit' | 'sendQueue'>;
   private sessionStore: FileSessionStore | NonNullable<RynkaiConfig['sessionStore']>;
   private logger: pino.Logger;
   private middlewares: Middleware[] = [];
   private rateLimiter: RateLimiter | null;
+  private sendQueue: SendQueue;
 
   constructor(config: RynkaiConfig) {
     super();
@@ -49,10 +52,12 @@ export class Client extends EventEmitter {
       sessionStore: config.sessionStore,
       sessionName: config.sessionName,
       rateLimit: config.rateLimit,
+      sendQueue: config.sendQueue,
     };
     this.sessionStore = config.sessionStore ?? new FileSessionStore(config.sessionName);
     this.logger = pino({ level: this.config.logLevel });
     this.rateLimiter = config.rateLimit ? new RateLimiter(config.rateLimit) : null;
+    this.sendQueue = new SendQueue(config.sendQueue);
   }
 
   /**
@@ -154,16 +159,24 @@ export class Client extends EventEmitter {
     await pipeline(ctx);
   }
 
-  /** Kirim pesan ke sebuah chat. Wrapper tipis di atas sock.sendMessage. */
+  /** Kirim pesan ke sebuah chat. Otomatis di-throttle lewat send queue biar tidak spam ke WA. */
   async send(chatId: string, content: AnyMessageContent): Promise<void> {
     if (!this.sock) throw new Error('Client belum connect. Panggil connect() dulu.');
-    await this.sock.sendMessage(chatId, content);
+    const sock = this.sock;
+    await this.sendQueue.push(() => sock.sendMessage(chatId, content));
   }
 
-  /** Balas sebuah NormalizedMessage, otomatis quote pesan aslinya. */
+  /** Balas sebuah NormalizedMessage, otomatis quote pesan aslinya. Ikut lewat send queue juga. */
   async reply(message: NormalizedMessage, text: string): Promise<void> {
     if (!this.sock) throw new Error('Client belum connect. Panggil connect() dulu.');
-    await this.sock.sendMessage(message.chatId, { text }, { quoted: message.raw });
+    const sock = this.sock;
+    await this.sendQueue.push(() => sock.sendMessage(message.chatId, { text }, { quoted: message.raw }));
+  }
+
+  /** Download media (image/video/audio/sticker/document) dari sebuah pesan sebagai Buffer. */
+  async downloadMedia(message: NormalizedMessage): Promise<Buffer> {
+    if (!this.sock) throw new Error('Client belum connect. Panggil connect() dulu.');
+    return downloadMedia(message, this.sock, this.logger);
   }
 
   /** Logout & bersihkan sesi tersimpan. */

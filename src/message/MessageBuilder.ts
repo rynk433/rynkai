@@ -26,7 +26,7 @@ export const MessageBuilder = {
     return { sticker: source };
   },
 
-  document(source: Buffer | { url: string }, fileName: string, mimetype?: string): AnyMessageContent {
+  document(source: Buffer | { url: string }, fileName: string, mimetype = 'application/octet-stream'): AnyMessageContent {
     return { document: source, fileName, mimetype };
   },
 };

@@ -92,7 +92,10 @@ export class MongoSessionStore implements SessionStore {
           ids.map(async (id) => {
             const value = await this.getValue<SignalDataTypeMap[typeof type]>(`${type}-${id}`);
             if (value) {
-              result[id] = type === 'app-state-sync-key' ? proto.Message.AppStateSyncKeyData.fromObject(value) : value;
+              result[id] =
+                type === 'app-state-sync-key'
+                  ? (proto.Message.AppStateSyncKeyData.fromObject(value) as unknown as SignalDataTypeMap[typeof type])
+                  : value;
             }
           })
         );

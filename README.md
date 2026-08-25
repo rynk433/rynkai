@@ -62,6 +62,28 @@ await bot.plugins.loadFromDirectory('./plugins');
 await bot.connect();
 ```
 
+## Download media
+
+```ts
+bot.on('message', async (msg) => {
+  if (msg.type === 'image') {
+    const buffer = await bot.downloadMedia(msg);
+    // buffer siap disimpan ke disk, di-forward, diproses, dll
+  }
+});
+```
+
+## Message send queue (anti rate-limit)
+
+Semua `client.send()` dan `client.reply()` otomatis lewat antrian dengan jeda default 250ms antar pesan — mencegah akun ke-flag WA saat kirim banyak pesan beruntun (misal broadcast). Bisa disesuaikan:
+
+```ts
+const bot = new Client({
+  sessionName: 'my-bot',
+  sendQueue: { intervalMs: 500 }, // lebih santai, jeda 500ms
+});
+```
+
 ## Middleware / hooks
 
 Middleware jalan sebelum plugin, bergaya "onion" (kayak Koa/Express) — bisa ngerjain sesuatu sebelum & sesudah `next()`, atau berhenti total tanpa memanggil `next()` (misal buat blokir user).
@@ -151,6 +173,11 @@ Masih tahap awal (0.1.0). Yang sudah ada:
 - [x] Middleware/hooks sebelum plugin dieksekusi
 - [x] Rate limiter global (terpisah dari cooldown per-plugin)
 - [x] Built-in MongoSessionStore
+- [x] Media downloader helper (`client.downloadMedia()`)
+- [x] Message send queue dengan throttle (anti rate-limit WA)
 
 Belum ada (rencana selanjutnya):
 - [ ] Test suite
+- [ ] Interactive messages (button, list, poll)
+- [ ] Presence helper (typing, online status)
+- [ ] Group helpers (metadata, add/remove participant, join/leave event)

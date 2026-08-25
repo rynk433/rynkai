@@ -88,4 +88,8 @@ export interface RynkaiConfig {
     /** Panjang window dalam milidetik */
     windowMs: number;
   };
+  /** Konfigurasi throttle pengiriman pesan (send queue). Default: jeda 250ms antar pesan. */
+  sendQueue?: {
+    intervalMs?: number;
+  };
 }

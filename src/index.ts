@@ -5,6 +5,8 @@ export { MessageBuilder } from './message/MessageBuilder';
 export { PluginLoader } from './plugin/PluginLoader';
 export { RateLimiter } from './core/RateLimiter';
 export { compose } from './core/Middleware';
+export { SendQueue } from './core/SendQueue';
+export { downloadMedia } from './media/downloadMedia';
 
 export type {
   NormalizedMessage,
@@ -16,3 +18,4 @@ export type {
 } from './types';
 export type { Middleware, NextFunction } from './core/Middleware';
 export type { RateLimitConfig } from './core/RateLimiter';
+export type { SendQueueConfig } from './core/SendQueue';
