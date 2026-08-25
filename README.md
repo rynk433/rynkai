@@ -1,6 +1,8 @@
 # rynkai
 
-Wrapper TypeScript yang clean di atas [Baileys](https://github.com/WhiskeySockets/Baileys), lengkap dengan plugin system & session store yang bisa diganti-ganti (file, MongoDB, dll).
+![CI](https://github.com/rynk433/rynkai/actions/workflows/ci.yml/badge.svg)
+
+Wrapper TypeScript yang clean di atas [Baileys](https://github.com/WhiskeySockets/Baileys), lengkap dengan plugin system & session store yang bisa diganti-ganti sesuai kebutuhan.
 
 ## Install
 
@@ -239,7 +241,7 @@ Masih tahap awal (0.1.0). Yang sudah ada:
 - [x] Group helpers (metadata, add/remove/promote/demote, join-leave event)
 - [x] Interactive messages (button, list, poll)
 - [x] Test suite (MessageParser, PluginLoader, RateLimiter, Middleware, SendQueue)
+- [x] GitHub Actions CI (auto build+test tiap push/PR, matrix Node 18 & 20)
 
 Belum ada (rencana selanjutnya):
 - [ ] CLI scaffold (`npx create-rynkai-bot`)
-- [ ] GitHub Actions CI (auto build+test tiap push)

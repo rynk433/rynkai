@@ -12,13 +12,7 @@
     "test:watch": "vitest",
     "prepublishOnly": "npm run build && npm test"
   },
-  "keywords": [
-    "whatsapp",
-    "bot",
-    "baileys",
-    "wrapper",
-    "plugin"
-  ],
+  "keywords": ["whatsapp", "bot", "baileys", "wrapper", "plugin"],
   "license": "MIT",
   "author": "rynk",
   "repository": {
@@ -48,7 +42,5 @@
     "@types/node": "^20.14.0",
     "vitest": "^2.1.0"
   },
-  "files": [
-    "dist"
-  ]
+  "files": ["dist"]
 }
