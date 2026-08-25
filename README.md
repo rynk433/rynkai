@@ -62,6 +62,41 @@ await bot.plugins.loadFromDirectory('./plugins');
 await bot.connect();
 ```
 
+## Middleware / hooks
+
+Middleware jalan sebelum plugin, bergaya "onion" (kayak Koa/Express) — bisa ngerjain sesuatu sebelum & sesudah `next()`, atau berhenti total tanpa memanggil `next()` (misal buat blokir user).
+
+```ts
+bot.use(async (ctx, next) => {
+  console.log(`[${ctx.message.sender}] -> ${ctx.message.text}`);
+  await next();
+  console.log(`[${ctx.message.sender}] <- selesai`);
+});
+
+bot.use(async (ctx, next) => {
+  if (isBanned(ctx.message.sender)) {
+    await ctx.reply('Kamu diblokir dari bot ini.');
+    return; // next() tidak dipanggil, plugin tidak jalan
+  }
+  await next();
+});
+```
+
+Middleware dijalankan berurutan sesuai urutan `use()` dipanggil, dan berlaku untuk semua command (beda dari `cooldown` di plugin yang per-command).
+
+## Rate limiter global
+
+Beda dari `cooldown` (per-plugin, per-user), `rateLimit` di config berlaku global — total command apapun yang boleh dijalankan satu user dalam satu window waktu.
+
+```ts
+const bot = new Client({
+  sessionName: 'my-bot',
+  rateLimit: { max: 10, windowMs: 60_000 }, // maksimal 10 command per menit per user
+});
+```
+
+Kalau user kelebihan limit, bot otomatis reply pemberitahuan dan command tidak diteruskan ke middleware/plugin.
+
 ## Session store custom (misal MongoDB)
 
 ```ts
@@ -98,9 +133,9 @@ Masih tahap awal (0.1.0). Yang sudah ada:
 - [x] Plugin loader + cooldown
 - [x] FileSessionStore default
 - [x] MessageBuilder helper
+- [x] Middleware/hooks sebelum plugin dieksekusi
+- [x] Rate limiter global (terpisah dari cooldown per-plugin)
 
 Belum ada (rencana selanjutnya):
 - [ ] Built-in MongoSessionStore
-- [ ] Middleware/hooks sebelum plugin dieksekusi
-- [ ] Rate limiter global (bukan cuma per-plugin)
 - [ ] Test suite

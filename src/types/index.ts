@@ -78,4 +78,14 @@ export interface RynkaiConfig {
   printQR?: boolean;
   /** Level log Baileys/pino, default "silent" */
   logLevel?: 'silent' | 'error' | 'warn' | 'info' | 'debug' | 'trace';
+  /**
+   * Rate limit global per user (terpisah dari cooldown per-plugin).
+   * Kalau tidak diisi, tidak ada rate limit global yang aktif.
+   */
+  rateLimit?: {
+    /** Maksimal command dalam satu window */
+    max: number;
+    /** Panjang window dalam milidetik */
+    windowMs: number;
+  };
 }

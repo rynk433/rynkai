@@ -12,6 +12,8 @@ import type { NormalizedMessage, RynkaiConfig, PluginContext } from '../types';
 import { FileSessionStore } from '../session/FileSessionStore';
 import { parseMessage } from '../message/MessageParser';
 import { PluginLoader } from '../plugin/PluginLoader';
+import { compose, type Middleware } from './Middleware';
+import { RateLimiter } from './RateLimiter';
 
 export interface RynkaiEvents {
   ready: () => void;
@@ -30,10 +32,12 @@ export class Client extends EventEmitter {
   public sock: WASocket | null = null;
   public readonly plugins = new PluginLoader();
 
-  private config: Required<Omit<RynkaiConfig, 'pairingCode' | 'sessionStore'>> &
-    Pick<RynkaiConfig, 'pairingCode' | 'sessionStore'>;
+  private config: Required<Omit<RynkaiConfig, 'pairingCode' | 'sessionStore' | 'rateLimit'>> &
+    Pick<RynkaiConfig, 'pairingCode' | 'sessionStore' | 'rateLimit'>;
   private sessionStore: FileSessionStore | NonNullable<RynkaiConfig['sessionStore']>;
   private logger: pino.Logger;
+  private middlewares: Middleware[] = [];
+  private rateLimiter: RateLimiter | null;
 
   constructor(config: RynkaiConfig) {
     super();
@@ -44,9 +48,21 @@ export class Client extends EventEmitter {
       pairingCode: config.pairingCode,
       sessionStore: config.sessionStore,
       sessionName: config.sessionName,
+      rateLimit: config.rateLimit,
     };
     this.sessionStore = config.sessionStore ?? new FileSessionStore(config.sessionName);
     this.logger = pino({ level: this.config.logLevel });
+    this.rateLimiter = config.rateLimit ? new RateLimiter(config.rateLimit) : null;
+  }
+
+  /**
+   * Daftarkan middleware yang jalan sebelum (dan bisa membungkus) eksekusi plugin.
+   * Dipanggil untuk semua pesan yang cocok prefix, terlepas plugin-nya ada atau tidak
+   * dalam urutan pendaftaran (onion model). Chainable.
+   */
+  use(middleware: Middleware): this {
+    this.middlewares.push(middleware);
+    return this;
   }
 
   /** Konek ke WhatsApp. Resolve setelah koneksi berhasil "open". */
@@ -124,7 +140,18 @@ export class Client extends EventEmitter {
       reply: (text: string) => this.reply(message, text),
     };
 
-    await this.plugins.execute(command, ctx);
+    // Rate limit global dicek duluan, sebelum middleware/plugin apapun jalan.
+    if (this.rateLimiter && !this.rateLimiter.consume(message.sender)) {
+      const retryAfter = this.rateLimiter.retryAfter(message.sender);
+      await ctx.reply(`Terlalu banyak perintah. Coba lagi dalam ${retryAfter} detik.`);
+      return;
+    }
+
+    const pipeline = compose(this.middlewares, async () => {
+      await this.plugins.execute(command, ctx);
+    });
+
+    await pipeline(ctx);
   }
 
   /** Kirim pesan ke sebuah chat. Wrapper tipis di atas sock.sendMessage. */
