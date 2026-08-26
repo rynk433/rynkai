@@ -274,6 +274,28 @@ const bot = new Client({
 bot.on('pairingCode', (code) => console.log('Kode pairing:', code));
 ```
 
+## Error handling
+
+Kalau ada plugin/middleware yang throw error, rynkai **tidak akan crash** — errornya diisolasi per-pesan, jadi pesan lain tetap diproses normal.
+
+```ts
+bot.on('error', (err, { source, message }) => {
+  console.error(`Error dari ${source}:`, err);
+  // kirim ke Sentry/logging eksternal di sini kalau perlu
+});
+```
+
+## Hal yang perlu diperhatikan sebelum produksi
+
+rynkai membungkus Baileys dan menambah fitur di atasnya, tapi ada beberapa hal di luar kendali library ini yang tetap perlu kamu pertimbangkan sendiri:
+
+- **Baileys itu unofficial API** — bukan API resmi Meta/WhatsApp. Risiko akun kena banned/flag selalu ada terlepas library apapun yang dipakai di atasnya, terutama kalau kirim pesan masif/spam ke banyak nomor asing.
+- **`FileSessionStore` menyimpan kredensial sesi sebagai file JSON polos di disk**, tidak dienkripsi. Kalau server/device kamu diakses orang lain, sesi WA bisa dicuri. Untuk deployment produksi, pastikan folder `.rynkai-sessions/` dijaga (permission file, tidak masuk backup publik, dst), atau implement `SessionStore` custom yang enkripsi datanya.
+- **Plugin loader pakai `require()` dinamis** — kalau folder plugin bisa diisi orang lain (misal upload file dari user tanpa validasi), itu sama saja dengan remote code execution. Jangan expose folder plugin ke input yang tidak terpercaya.
+- **Belum ada integration test** terhadap koneksi WhatsApp asli (test suite yang ada murni unit test logic internal seperti parser/plugin loader/rate limiter) — karena butuh akun WA aktif buat testing end-to-end.
+
+Ini normal untuk semua project di atas Baileys, bukan hal yang bisa "diselesaikan" library — tapi penting untuk disadari sebelum menganggap sesuatu "aman" secara menyeluruh.
+
 ## Testing
 
 ```bash

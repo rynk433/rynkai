@@ -38,6 +38,14 @@ export interface RynkaiEvents {
   reconnecting: (info: { attempt: number; delayMs: number }) => void;
   /** Ditembak kalau maxRetries reconnect sudah tercapai dan client menyerah. */
   'reconnect-failed': () => void;
+  /**
+   * Ditembak kalau ada error tak tertangani dari plugin, middleware, atau
+   * internal handler (autoRead, dsb). Bot TIDAK crash karena error ini —
+   * sudah diisolasi per-pesan — tapi kalau tidak ada listener, error tetap
+   * di-log via pino internal. Pasang listener ini kalau mau reporting sendiri
+   * (misal kirim ke Sentry/log eksternal).
+   */
+  error: (err: unknown, context: { source: string; message?: NormalizedMessage }) => void;
 }
 
 /**
@@ -161,13 +169,25 @@ export class Client extends EventEmitter {
       for (const raw of messages) {
         if (!raw.message) continue;
         const message = parseMessage(raw);
-        this.emit('message', message);
 
-        if (this.config.autoRead && !message.fromMe) {
-          await this.markAsRead(message).catch((err) => this.logger.error(err, 'gagal markAsRead'));
+        // Setiap pesan diisolasi try/catch-nya sendiri: kalau satu pesan
+        // gagal diproses (plugin/middleware/autoRead error), pesan lain
+        // di batch yang sama tetap lanjut diproses, dan proses bot tidak crash.
+        try {
+          this.emit('message', message);
+
+          if (this.config.autoRead && !message.fromMe) {
+            await this.markAsRead(message).catch((err) => {
+              this.logger.error(err, 'gagal markAsRead');
+              this.emit('error', err, { source: 'autoRead', message });
+            });
+          }
+
+          await this.dispatchPlugin(message);
+        } catch (err) {
+          this.logger.error(err, 'error tak tertangani saat memproses pesan');
+          this.emit('error', err, { source: 'dispatchPlugin', message });
         }
-
-        await this.dispatchPlugin(message);
       }
     });
 
