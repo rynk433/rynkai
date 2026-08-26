@@ -20,6 +20,7 @@ import { RateLimiter } from './RateLimiter';
 import { SendQueue } from './SendQueue';
 import { Backoff } from './Backoff';
 import { downloadMedia } from '../media/downloadMedia';
+import { createSticker, createAnimatedSticker, type StickerOptions } from '../sticker/createSticker';
 
 export interface GroupParticipantsEvent {
   groupId: string;
@@ -273,6 +274,24 @@ export class Client extends EventEmitter {
   async downloadMedia(message: NormalizedMessage): Promise<Buffer> {
     if (!this.sock) throw new Error('Client belum connect. Panggil connect() dulu.');
     return downloadMedia(message, this.sock, this.logger);
+  }
+
+  /**
+   * Ubah buffer gambar jadi WhatsApp sticker dan langsung kirim ke sebuah chat.
+   * Butuh package "sharp" terinstall (`npm install sharp`).
+   */
+  async sendSticker(chatId: string, imageBuffer: Buffer, options?: StickerOptions): Promise<void> {
+    const sticker = await createSticker(imageBuffer, options);
+    await this.send(chatId, { sticker });
+  }
+
+  /**
+   * Ubah buffer video/gif jadi WhatsApp sticker animasi dan langsung kirim.
+   * Butuh `ffmpeg` terinstall di sistem (lihat dokumentasi createAnimatedSticker).
+   */
+  async sendAnimatedSticker(chatId: string, videoBuffer: Buffer, options?: StickerOptions): Promise<void> {
+    const sticker = await createAnimatedSticker(videoBuffer, options);
+    await this.send(chatId, { sticker });
   }
 
   /** Beri reaction emoji ke sebuah pesan. Lewat send queue juga (throttle sama seperti send/reply). */

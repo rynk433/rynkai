@@ -8,6 +8,7 @@ export { SendQueue } from './core/SendQueue';
 export { Backoff } from './core/Backoff';
 export { AccessControl } from './core/AccessControl';
 export { downloadMedia } from './media/downloadMedia';
+export { createSticker, createAnimatedSticker } from './sticker/createSticker';
 
 export type {
   NormalizedMessage,
@@ -22,4 +23,5 @@ export type { RateLimitConfig } from './core/RateLimiter';
 export type { SendQueueConfig } from './core/SendQueue';
 export type { BackoffConfig } from './core/Backoff';
 export type { AccessControlConfig, AccessControlMode } from './core/AccessControl';
+export type { StickerOptions } from './sticker/createSticker';
 export type { GroupParticipantsEvent, RynkaiEvents } from './core/Client';

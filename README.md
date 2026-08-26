@@ -64,6 +64,43 @@ await bot.plugins.loadFromDirectory('./plugins');
 await bot.connect();
 ```
 
+## Sticker maker
+
+Butuh package tambahan:
+```bash
+npm install sharp                # wajib, buat convert gambar -> webp
+npm install node-webpmux         # opsional, cuma kalau mau isi packname/author
+```
+
+```ts
+import { MessageBuilder } from 'rynkai';
+
+bot.on('message', async (msg) => {
+  if (msg.text === '.stiker' && msg.type === 'image') {
+    const buffer = await bot.downloadMedia(msg);
+    await bot.sendSticker(msg.chatId, buffer, { packname: 'Bot Aku', author: 'rynk' });
+  }
+});
+```
+
+> Catatan: `bot.downloadMedia()` butuh objek `NormalizedMessage` penuh (termasuk `raw`). Kalau mau download media dari pesan yang **di-reply** (`msg.quoted`), simpan/ambil pesan aslinya lewat `raw.key` dan proses manual — `msg.quoted` sengaja tidak menyertakan field `quoted`-nya sendiri (menghindari nesting tak terbatas), jadi bukan tipe yang sama persis.
+
+Atau pakai fungsi standalone-nya langsung kalau butuh buffer-nya (bukan langsung kirim):
+```ts
+import { createSticker } from 'rynkai';
+
+const stickerBuffer = await createSticker(imageBuffer, { packname: 'Bot Aku', author: 'rynk' });
+await bot.send(chatId, MessageBuilder.sticker(stickerBuffer));
+```
+
+**Sticker animasi (dari video/gif)** butuh `ffmpeg` terinstall di sistem (bukan package npm) — `apt install ffmpeg` di Debian/Ubuntu, atau `pkg install ffmpeg` di Termux:
+```ts
+await bot.sendAnimatedSticker(chatId, videoBuffer, { packname: 'Bot Aku' });
+// otomatis dipotong maksimal 6 detik pertama
+```
+
+> **Catatan kompatibilitas:** `sharp` adalah native binding (butuh libvips terkompilasi). Di kebanyakan platform (Linux x64/arm64 server, macOS, Windows, GitHub Actions) ini terinstall otomatis lewat prebuilt binary. Tapi di **Termux/Android ARM64**, prebuilt binary sharp sering tidak tersedia — kalau kamu develop bot di HP lewat Termux, fitur sticker gambar mungkin tidak berfungsi sampai kamu install libvips manual (lihat [dokumentasi instalasi sharp](https://sharp.pixelplumbing.com/install)) atau pakai varian WASM-nya. Ini bukan bug di rynkai, melainkan keterbatasan platform Termux itu sendiri.
+
 ## Blocklist / whitelist user & grup
 
 ```ts
@@ -349,6 +386,7 @@ Masih tahap awal (0.1.0). Yang sudah ada:
 - [x] Message reactions (`react`, `removeReaction`) & read receipt (`markAsRead`, `autoRead`)
 - [x] Graceful shutdown (`disconnect()`) + reconnect exponential backoff dengan jitter
 - [x] Blocklist/whitelist user & grup built-in (`AccessControl`)
+- [x] Sticker maker (`createSticker`, `createAnimatedSticker`, `sendSticker`, `sendAnimatedSticker`)
 
 Belum ada (rencana selanjutnya):
 - [x] ~~CLI scaffold (`npx create-rynkai-bot`)~~ — sudah tersedia sebagai package terpisah
