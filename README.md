@@ -40,6 +40,8 @@ await bot.connect();
 
 ## Plugin system
 
+Plugin format-nya sengaja mirip gaya rynk4: `{ name, command, category, execute() }`.
+
 ```ts
 // plugins/hello.ts
 import type { Plugin } from 'rynkai';
@@ -60,6 +62,38 @@ export default plugin;
 ```ts
 await bot.plugins.loadFromDirectory('./plugins');
 await bot.connect();
+```
+
+## Reconnect backoff & graceful shutdown
+
+Kalau koneksi putus (bukan karena logout), rynkai otomatis reconnect dengan **exponential backoff** (jeda 1 detik → 2 → 4 → ... sampai maksimal 30 detik, plus sedikit jitter acak) — bukan reconnect instan yang bisa bikin WA curiga.
+
+```ts
+const bot = new Client({
+  sessionName: 'my-bot',
+  reconnect: {
+    initialDelayMs: 1000,   // jeda awal
+    maxDelayMs: 30_000,     // jeda maksimum
+    maxRetries: 10,         // opsional, default tidak terbatas
+  },
+});
+
+bot.on('reconnecting', ({ attempt, delayMs }) => {
+  console.log(`Reconnect percobaan ke-${attempt}, tunggu ${delayMs}ms...`);
+});
+
+bot.on('reconnect-failed', () => {
+  console.log('Menyerah reconnect, cek koneksi internet/server.');
+});
+```
+
+Buat graceful shutdown (misal saat proses mau dimatikan), pakai `disconnect()` — beda dari `logout()`, ini **tidak menghapus sesi tersimpan**, jadi bisa `connect()` lagi tanpa scan QR ulang:
+
+```ts
+process.on('SIGINT', async () => {
+  await bot.disconnect();
+  process.exit(0);
+});
 ```
 
 ## Reactions & read receipt
@@ -212,6 +246,8 @@ Kalau user kelebihan limit, bot otomatis reply pemberitahuan dan command tidak d
 
 ## Session store custom
 
+Default-nya pakai `FileSessionStore` (simpan sesi sebagai file di disk). Kalau butuh store lain (MongoDB, Redis, dll), tinggal implement interface `SessionStore`:
+
 ```ts
 import type { SessionStore } from 'rynkai';
 
@@ -246,3 +282,26 @@ npm run test:watch # mode watch
 ```
 
 Test coverage saat ini: `MessageParser`, `PluginLoader` (termasuk cooldown), `RateLimiter`, `Middleware` (compose/onion), `SendQueue`.
+
+## Status
+
+Masih tahap awal (0.1.0). Yang sudah ada:
+- [x] Core client (connect, reconnect, QR/pairing code)
+- [x] Normalized message parsing (text, media, quoted)
+- [x] Plugin loader + cooldown
+- [x] FileSessionStore default
+- [x] MessageBuilder helper
+- [x] Middleware/hooks sebelum plugin dieksekusi
+- [x] Rate limiter global (terpisah dari cooldown per-plugin)
+- [x] Media downloader helper (`client.downloadMedia()`)
+- [x] Message send queue dengan throttle (anti rate-limit WA)
+- [x] Presence helper (`sendTyping`, `sendPresence`)
+- [x] Group helpers (metadata, add/remove/promote/demote, join-leave event)
+- [x] Interactive messages (button, list, poll)
+- [x] Test suite (MessageParser, PluginLoader, RateLimiter, Middleware, SendQueue)
+- [x] GitHub Actions CI (auto build+test tiap push/PR, matrix Node 20 & 22)
+- [x] Message reactions (`react`, `removeReaction`) & read receipt (`markAsRead`, `autoRead`)
+- [x] Graceful shutdown (`disconnect()`) + reconnect exponential backoff dengan jitter
+
+Belum ada (rencana selanjutnya):
+- [ ] CLI scaffold (`npx create-rynkai-bot`)

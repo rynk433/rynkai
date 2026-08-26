@@ -18,6 +18,7 @@ import { PluginLoader } from '../plugin/PluginLoader';
 import { compose, type Middleware } from './Middleware';
 import { RateLimiter } from './RateLimiter';
 import { SendQueue } from './SendQueue';
+import { Backoff } from './Backoff';
 import { downloadMedia } from '../media/downloadMedia';
 
 export interface GroupParticipantsEvent {
@@ -33,6 +34,10 @@ export interface RynkaiEvents {
   qr: (qr: string) => void;
   pairingCode: (code: string) => void;
   'group-participants-update': (event: GroupParticipantsEvent) => void;
+  /** Ditembak setiap kali mau mencoba reconnect, sebelum jeda backoff dimulai. */
+  reconnecting: (info: { attempt: number; delayMs: number }) => void;
+  /** Ditembak kalau maxRetries reconnect sudah tercapai dan client menyerah. */
+  'reconnect-failed': () => void;
 }
 
 /**
@@ -44,13 +49,16 @@ export class Client extends EventEmitter {
   public sock: WASocket | null = null;
   public readonly plugins = new PluginLoader();
 
-  private config: Required<Omit<RynkaiConfig, 'pairingCode' | 'sessionStore' | 'rateLimit' | 'sendQueue' | 'autoRead'>> &
-    Pick<RynkaiConfig, 'pairingCode' | 'sessionStore' | 'rateLimit' | 'sendQueue' | 'autoRead'>;
+  private config: Required<Omit<RynkaiConfig, 'pairingCode' | 'sessionStore' | 'rateLimit' | 'sendQueue' | 'autoRead' | 'reconnect'>> &
+    Pick<RynkaiConfig, 'pairingCode' | 'sessionStore' | 'rateLimit' | 'sendQueue' | 'autoRead' | 'reconnect'>;
   private sessionStore: FileSessionStore | NonNullable<RynkaiConfig['sessionStore']>;
   private logger: pino.Logger;
   private middlewares: Middleware[] = [];
   private rateLimiter: RateLimiter | null;
   private sendQueue: SendQueue;
+  private backoff: Backoff;
+  private manualClose = false;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(config: RynkaiConfig) {
     super();
@@ -64,11 +72,13 @@ export class Client extends EventEmitter {
       rateLimit: config.rateLimit,
       sendQueue: config.sendQueue,
       autoRead: config.autoRead ?? false,
+      reconnect: config.reconnect,
     };
     this.sessionStore = config.sessionStore ?? new FileSessionStore(config.sessionName);
     this.logger = pino({ level: this.config.logLevel });
     this.rateLimiter = config.rateLimit ? new RateLimiter(config.rateLimit) : null;
     this.sendQueue = new SendQueue(config.sendQueue);
+    this.backoff = new Backoff(config.reconnect);
   }
 
   /**
@@ -83,6 +93,7 @@ export class Client extends EventEmitter {
 
   /** Konek ke WhatsApp. Resolve setelah koneksi berhasil "open". */
   async connect(): Promise<void> {
+    this.manualClose = false;
     const state = await this.sessionStore.load();
     if (!state) {
       throw new Error('SessionStore.load() mengembalikan null — pastikan implementasinya benar.');
@@ -114,17 +125,33 @@ export class Client extends EventEmitter {
       }
 
       if (connection === 'open') {
+        this.backoff.reset();
         this.emit('ready');
       }
 
       if (connection === 'close') {
         const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
-        const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+        const loggedOut = statusCode === DisconnectReason.loggedOut;
         this.emit('disconnected', String(statusCode ?? 'unknown'));
 
-        if (shouldReconnect) {
-          this.connect().catch((err) => this.logger.error(err, 'gagal reconnect'));
+        // Tidak reconnect kalau ditutup manual (client.disconnect()) atau logout beneran.
+        if (this.manualClose || loggedOut) {
+          return;
         }
+
+        if (!this.backoff.canRetry()) {
+          this.logger.error('Batas maksimal reconnect tercapai, menyerah.');
+          this.emit('reconnect-failed');
+          return;
+        }
+
+        const attempt = this.backoff.attemptCount + 1;
+        const delayMs = this.backoff.next();
+        this.emit('reconnecting', { attempt, delayMs });
+
+        this.reconnectTimer = setTimeout(() => {
+          this.connect().catch((err) => this.logger.error(err, 'gagal reconnect'));
+        }, delayMs);
       }
     });
 
@@ -276,8 +303,26 @@ export class Client extends EventEmitter {
 
   /** Logout & bersihkan sesi tersimpan. */
   async logout(): Promise<void> {
+    this.manualClose = true;
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     await this.sock?.logout();
     await this.sessionStore.clear();
+  }
+
+  /**
+   * Tutup koneksi secara graceful tanpa menghapus sesi tersimpan (beda dari logout()).
+   * Tidak akan memicu auto-reconnect. Cocok dipanggil saat proses mau di-shutdown,
+   * misal di handler SIGINT/SIGTERM:
+   *
+   * process.on('SIGINT', async () => {
+   *   await bot.disconnect();
+   *   process.exit(0);
+   * });
+   */
+  async disconnect(): Promise<void> {
+    this.manualClose = true;
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    this.sock?.end(undefined);
   }
 
   // Type-safe event emitter overrides

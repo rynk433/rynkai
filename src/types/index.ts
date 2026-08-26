@@ -97,4 +97,13 @@ export interface RynkaiConfig {
   };
   /** Otomatis tandai setiap pesan masuk sebagai sudah dibaca (centang biru). Default: false. */
   autoRead?: boolean;
+  /**
+   * Konfigurasi backoff untuk auto-reconnect saat koneksi putus (bukan karena logout manual).
+   * Default: jeda mulai 1 detik, naik exponential sampai maksimal 30 detik, tidak ada batas percobaan.
+   */
+  reconnect?: {
+    initialDelayMs?: number;
+    maxDelayMs?: number;
+    maxRetries?: number;
+  };
 }
