@@ -27,11 +27,18 @@ export class FileSessionStore implements SessionStore {
 
   async save(_state: AuthenticationState): Promise<void> {
     // useMultiFileAuthState sudah otomatis nulis ke disk tiap kali keys/creds
-    // berubah lewat event 'creds.update' — kita cukup panggil saveCreds
-    // yang di-provide-nya. Lihat ConnectionManager untuk pemanggilannya.
+    // berubah — kita cukup panggil saveCreds yang di-provide-nya lewat load().
     if (this.saveCreds) {
       await this.saveCreds();
+      return;
     }
+
+    // Kalau ini kejadian, artinya save() dipanggil sebelum load() pernah
+    // sukses — biasanya bug di pemanggil (mestinya connect() selalu load()
+    // dulu). Di-log biar tidak silent-fail dan bikin sesi hilang tanpa jejak.
+    console.warn(
+      '[rynkai] FileSessionStore.save() dipanggil sebelum load() pernah sukses — perubahan sesi TIDAK tersimpan.'
+    );
   }
 
   async clear(): Promise<void> {

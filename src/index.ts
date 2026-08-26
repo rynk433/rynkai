@@ -6,6 +6,7 @@ export { RateLimiter } from './core/RateLimiter';
 export { compose } from './core/Middleware';
 export { SendQueue } from './core/SendQueue';
 export { Backoff } from './core/Backoff';
+export { AccessControl } from './core/AccessControl';
 export { downloadMedia } from './media/downloadMedia';
 
 export type {
@@ -20,4 +21,5 @@ export type { Middleware, NextFunction } from './core/Middleware';
 export type { RateLimitConfig } from './core/RateLimiter';
 export type { SendQueueConfig } from './core/SendQueue';
 export type { BackoffConfig } from './core/Backoff';
+export type { AccessControlConfig, AccessControlMode } from './core/AccessControl';
 export type { GroupParticipantsEvent, RynkaiEvents } from './core/Client';

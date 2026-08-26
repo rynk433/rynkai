@@ -64,6 +64,30 @@ await bot.plugins.loadFromDirectory('./plugins');
 await bot.connect();
 ```
 
+## Blocklist / whitelist user & grup
+
+```ts
+import { AccessControl } from 'rynkai';
+
+// Mode blocklist (default): bot terbuka untuk semua, kecuali yang di-block
+const acl = new AccessControl({ replyMessage: 'Kamu diblokir dari bot ini.' });
+acl.block('628123456789@s.whatsapp.net');
+acl.unblock('628123456789@s.whatsapp.net');
+
+bot.use(acl.middleware());
+```
+
+```ts
+// Mode whitelist: bot privat, cuma JID tertentu yang boleh pakai
+const acl = new AccessControl({ mode: 'whitelist' });
+acl.allow('628123456789@s.whatsapp.net'); // izinkan user tertentu
+acl.allow('120363000000000000@g.us');     // izinkan grup tertentu
+
+bot.use(acl.middleware());
+```
+
+Satu instance `AccessControl` bisa dipakai buat user maupun grup sekaligus (dibedakan dari suffix JID-nya). Middleware ini mengecek **sender DAN chatId grup** — kalau salah satu diblokir, command tidak diteruskan ke plugin.
+
 ## Reconnect backoff & graceful shutdown
 
 Kalau koneksi putus (bukan karena logout), rynkai otomatis reconnect dengan **exponential backoff** (jeda 1 detik → 2 → 4 → ... sampai maksimal 30 detik, plus sedikit jitter acak) — bukan reconnect instan yang bisa bikin WA curiga.
@@ -276,7 +300,7 @@ bot.on('pairingCode', (code) => console.log('Kode pairing:', code));
 
 ## Error handling
 
-Kalau ada plugin/middleware yang throw error, rynkai **tidak akan crash** — errornya diisolasi per-pesan, jadi pesan lain tetap diproses normal.
+Kalau ada plugin/middleware yang throw error, rynkai **tidak akan crash** — errornya diisolasi per-pesan, jadi pesan lain tetap diproses normal. Ini berlaku otomatis walau kamu tidak pasang listener `error` sama sekali (rynkai selalu punya listener default internal, jadi aman dari perilaku khusus Node.js `EventEmitter` yang biasanya crash kalau event `'error'` di-emit tanpa listener).
 
 ```ts
 bot.on('error', (err, { source, message }) => {
@@ -324,6 +348,7 @@ Masih tahap awal (0.1.0). Yang sudah ada:
 - [x] GitHub Actions CI (auto build+test tiap push/PR, matrix Node 20 & 22)
 - [x] Message reactions (`react`, `removeReaction`) & read receipt (`markAsRead`, `autoRead`)
 - [x] Graceful shutdown (`disconnect()`) + reconnect exponential backoff dengan jitter
+- [x] Blocklist/whitelist user & grup built-in (`AccessControl`)
 
 Belum ada (rencana selanjutnya):
-- [ ] CLI scaffold (`npx create-rynkai-bot`)
+- [x] ~~CLI scaffold (`npx create-rynkai-bot`)~~ — sudah tersedia sebagai package terpisah

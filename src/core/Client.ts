@@ -67,6 +67,7 @@ export class Client extends EventEmitter {
   private backoff: Backoff;
   private manualClose = false;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private connectionState: 'idle' | 'connecting' | 'connected' | 'disconnected' = 'idle';
 
   constructor(config: RynkaiConfig) {
     super();
@@ -87,6 +88,17 @@ export class Client extends EventEmitter {
     this.rateLimiter = config.rateLimit ? new RateLimiter(config.rateLimit) : null;
     this.sendQueue = new SendQueue(config.sendQueue);
     this.backoff = new Backoff(config.reconnect);
+
+    // PENTING: Node.js EventEmitter melempar (throw) error secara sinkron
+    // kalau event 'error' di-emit tanpa ada listener sama sekali. Tanpa
+    // default listener ini, fitur isolasi error yang kita bangun (supaya
+    // plugin yang gagal tidak men-crash bot) justru jadi celah crash baru
+    // kalau consumer lupa pasang bot.on('error', ...). Listener default ini
+    // menjamin itu tidak pernah terjadi; consumer tetap bisa pasang listener
+    // tambahan sendiri untuk reporting custom.
+    super.on('error', (err: unknown, context?: { source: string }) => {
+      this.logger.error({ err, context }, 'Unhandled error di rynkai (tidak men-crash proses)');
+    });
   }
 
   /**
@@ -101,6 +113,12 @@ export class Client extends EventEmitter {
 
   /** Konek ke WhatsApp. Resolve setelah koneksi berhasil "open". */
   async connect(): Promise<void> {
+    if (this.connectionState === 'connecting' || this.connectionState === 'connected') {
+      throw new Error(
+        'Client sudah terhubung atau sedang menyambungkan. Panggil disconnect() dulu sebelum connect() lagi.'
+      );
+    }
+    this.connectionState = 'connecting';
     this.manualClose = false;
     const state = await this.sessionStore.load();
     if (!state) {
@@ -117,7 +135,12 @@ export class Client extends EventEmitter {
     });
 
     this.sock.ev.on('creds.update', async () => {
-      await this.sessionStore.save(state);
+      try {
+        await this.sessionStore.save(state);
+      } catch (err) {
+        this.logger.error(err, 'gagal menyimpan sesi (creds.update)');
+        this.emit('error', err, { source: 'sessionStore.save' });
+      }
     });
 
     if (this.config.pairingCode && !this.sock.authState.creds.registered) {
@@ -133,11 +156,13 @@ export class Client extends EventEmitter {
       }
 
       if (connection === 'open') {
+        this.connectionState = 'connected';
         this.backoff.reset();
         this.emit('ready');
       }
 
       if (connection === 'close') {
+        this.connectionState = 'disconnected';
         const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
         const loggedOut = statusCode === DisconnectReason.loggedOut;
         this.emit('disconnected', String(statusCode ?? 'unknown'));
@@ -324,6 +349,7 @@ export class Client extends EventEmitter {
   /** Logout & bersihkan sesi tersimpan. */
   async logout(): Promise<void> {
     this.manualClose = true;
+    this.connectionState = 'disconnected';
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     await this.sock?.logout();
     await this.sessionStore.clear();
@@ -341,6 +367,7 @@ export class Client extends EventEmitter {
    */
   async disconnect(): Promise<void> {
     this.manualClose = true;
+    this.connectionState = 'disconnected';
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.sock?.end(undefined);
   }
