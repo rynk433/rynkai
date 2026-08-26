@@ -47,7 +47,19 @@ function parseQuoted(msg: proto.IMessage | null | undefined): Omit<NormalizedMes
     text: extractText(quotedRaw),
     fromMe: false,
     timestamp: 0,
+    reaction: null,
     raw: { key: { id: ctx.stanzaId }, message: quotedRaw } as proto.IWebMessageInfo,
+  };
+}
+
+/** Ambil target message id & emoji dari sebuah reactionMessage */
+function parseReaction(msg: proto.IMessage | null | undefined): NormalizedMessage['reaction'] {
+  const reactionMsg = msg?.reactionMessage;
+  if (!reactionMsg?.key?.id) return null;
+
+  return {
+    targetMessageId: reactionMsg.key.id,
+    emoji: reactionMsg.text || '',
   };
 }
 
@@ -70,6 +82,7 @@ export function parseMessage(raw: proto.IWebMessageInfo): NormalizedMessage {
     fromMe: raw.key.fromMe || false,
     timestamp: Number(raw.messageTimestamp) || Math.floor(Date.now() / 1000),
     quoted: parseQuoted(raw.message),
+    reaction: parseReaction(raw.message),
     raw,
   };
 }

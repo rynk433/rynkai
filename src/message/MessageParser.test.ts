@@ -94,4 +94,27 @@ describe('parseMessage', () => {
     const result = parseMessage(raw);
     expect(result.timestamp).toBeGreaterThanOrEqual(before);
   });
+
+  it('parse pesan reaction dengan benar', () => {
+    const raw = fakeRaw({
+      message: {
+        reactionMessage: {
+          key: { id: 'TARGET_MSG_ID', remoteJid: '628123456789@s.whatsapp.net' },
+          text: '🔥',
+        },
+      },
+    });
+
+    const result = parseMessage(raw);
+
+    expect(result.type).toBe('reaction');
+    expect(result.reaction).not.toBeNull();
+    expect(result.reaction?.targetMessageId).toBe('TARGET_MSG_ID');
+    expect(result.reaction?.emoji).toBe('🔥');
+  });
+
+  it('reaction bernilai null untuk pesan biasa', () => {
+    const result = parseMessage(fakeRaw());
+    expect(result.reaction).toBeNull();
+  });
 });

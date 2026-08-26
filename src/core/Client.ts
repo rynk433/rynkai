@@ -44,8 +44,8 @@ export class Client extends EventEmitter {
   public sock: WASocket | null = null;
   public readonly plugins = new PluginLoader();
 
-  private config: Required<Omit<RynkaiConfig, 'pairingCode' | 'sessionStore' | 'rateLimit' | 'sendQueue'>> &
-    Pick<RynkaiConfig, 'pairingCode' | 'sessionStore' | 'rateLimit' | 'sendQueue'>;
+  private config: Required<Omit<RynkaiConfig, 'pairingCode' | 'sessionStore' | 'rateLimit' | 'sendQueue' | 'autoRead'>> &
+    Pick<RynkaiConfig, 'pairingCode' | 'sessionStore' | 'rateLimit' | 'sendQueue' | 'autoRead'>;
   private sessionStore: FileSessionStore | NonNullable<RynkaiConfig['sessionStore']>;
   private logger: pino.Logger;
   private middlewares: Middleware[] = [];
@@ -63,6 +63,7 @@ export class Client extends EventEmitter {
       sessionName: config.sessionName,
       rateLimit: config.rateLimit,
       sendQueue: config.sendQueue,
+      autoRead: config.autoRead ?? false,
     };
     this.sessionStore = config.sessionStore ?? new FileSessionStore(config.sessionName);
     this.logger = pino({ level: this.config.logLevel });
@@ -134,6 +135,11 @@ export class Client extends EventEmitter {
         if (!raw.message) continue;
         const message = parseMessage(raw);
         this.emit('message', message);
+
+        if (this.config.autoRead && !message.fromMe) {
+          await this.markAsRead(message).catch((err) => this.logger.error(err, 'gagal markAsRead'));
+        }
+
         await this.dispatchPlugin(message);
       }
     });
@@ -195,6 +201,30 @@ export class Client extends EventEmitter {
   async downloadMedia(message: NormalizedMessage): Promise<Buffer> {
     if (!this.sock) throw new Error('Client belum connect. Panggil connect() dulu.');
     return downloadMedia(message, this.sock, this.logger);
+  }
+
+  /** Beri reaction emoji ke sebuah pesan. Lewat send queue juga (throttle sama seperti send/reply). */
+  async react(message: NormalizedMessage, emoji: string): Promise<void> {
+    if (!this.sock) throw new Error('Client belum connect. Panggil connect() dulu.');
+    const sock = this.sock;
+    await this.sendQueue.push(() =>
+      sock.sendMessage(message.chatId, { react: { text: emoji, key: message.raw.key } })
+    );
+  }
+
+  /** Hapus reaction yang sudah dikirim ke sebuah pesan. */
+  async removeReaction(message: NormalizedMessage): Promise<void> {
+    await this.react(message, '');
+  }
+
+  /**
+   * Tandai satu atau beberapa pesan sebagai sudah dibaca (centang biru).
+   * Terima satu NormalizedMessage atau array.
+   */
+  async markAsRead(message: NormalizedMessage | NormalizedMessage[]): Promise<void> {
+    if (!this.sock) throw new Error('Client belum connect. Panggil connect() dulu.');
+    const messages = Array.isArray(message) ? message : [message];
+    await this.sock.readMessages(messages.map((m) => m.raw.key));
   }
 
   /** Update presence (online/typing/recording/dst) di sebuah chat. */

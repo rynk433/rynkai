@@ -33,6 +33,8 @@ export interface NormalizedMessage {
   timestamp: number;
   /** Pesan yang di-quote/reply, kalau ada (sudah dinormalisasi juga, minus quotedMessage-nya sendiri) */
   quoted: Omit<NormalizedMessage, 'quoted'> | null;
+  /** Detail reaction, terisi hanya kalau type === 'reaction' (orang lain react ke suatu pesan) */
+  reaction: { targetMessageId: string; emoji: string } | null;
   /** Raw proto message asli dari Baileys, buat kasus yang butuh akses low-level */
   raw: proto.IWebMessageInfo;
 }
@@ -93,4 +95,6 @@ export interface RynkaiConfig {
   sendQueue?: {
     intervalMs?: number;
   };
+  /** Otomatis tandai setiap pesan masuk sebagai sudah dibaca (centang biru). Default: false. */
+  autoRead?: boolean;
 }

@@ -40,8 +40,6 @@ await bot.connect();
 
 ## Plugin system
 
-Plugin format-nya sengaja mirip gaya rynk4: `{ name, command, category, execute() }`.
-
 ```ts
 // plugins/hello.ts
 import type { Plugin } from 'rynkai';
@@ -62,6 +60,32 @@ export default plugin;
 ```ts
 await bot.plugins.loadFromDirectory('./plugins');
 await bot.connect();
+```
+
+## Reactions & read receipt
+
+```ts
+bot.on('message', async (msg) => {
+  await bot.react(msg, '👍');       // kasih reaction ke pesan masuk
+  await bot.removeReaction(msg);    // hapus reaction (kirim emoji kosong)
+  await bot.markAsRead(msg);        // tandai sudah dibaca (centang biru)
+});
+
+// Deteksi kalau seseorang react ke pesan (termasuk pesan bot sendiri)
+bot.on('message', (msg) => {
+  if (msg.type === 'reaction' && msg.reaction) {
+    console.log(`${msg.sender} react ${msg.reaction.emoji} ke pesan ${msg.reaction.targetMessageId}`);
+  }
+});
+```
+
+Auto-mark semua pesan masuk sebagai sudah dibaca:
+
+```ts
+const bot = new Client({
+  sessionName: 'my-bot',
+  autoRead: true,
+});
 ```
 
 ## Presence (typing / online status)
@@ -188,8 +212,6 @@ Kalau user kelebihan limit, bot otomatis reply pemberitahuan dan command tidak d
 
 ## Session store custom
 
-Default-nya pakai `FileSessionStore` (simpan sesi sebagai file di disk). Kalau butuh store lain (MongoDB, Redis, dll), tinggal implement interface `SessionStore`:
-
 ```ts
 import type { SessionStore } from 'rynkai';
 
@@ -224,24 +246,3 @@ npm run test:watch # mode watch
 ```
 
 Test coverage saat ini: `MessageParser`, `PluginLoader` (termasuk cooldown), `RateLimiter`, `Middleware` (compose/onion), `SendQueue`.
-
-## Status
-
-Masih tahap awal (0.1.0). Yang sudah ada:
-- [x] Core client (connect, reconnect, QR/pairing code)
-- [x] Normalized message parsing (text, media, quoted)
-- [x] Plugin loader + cooldown
-- [x] FileSessionStore default
-- [x] MessageBuilder helper
-- [x] Middleware/hooks sebelum plugin dieksekusi
-- [x] Rate limiter global (terpisah dari cooldown per-plugin)
-- [x] Media downloader helper (`client.downloadMedia()`)
-- [x] Message send queue dengan throttle (anti rate-limit WA)
-- [x] Presence helper (`sendTyping`, `sendPresence`)
-- [x] Group helpers (metadata, add/remove/promote/demote, join-leave event)
-- [x] Interactive messages (button, list, poll)
-- [x] Test suite (MessageParser, PluginLoader, RateLimiter, Middleware, SendQueue)
-- [x] GitHub Actions CI (auto build+test tiap push/PR, matrix Node 18 & 20)
-
-Belum ada (rencana selanjutnya):
-- [ ] CLI scaffold (`npx create-rynkai-bot`)
