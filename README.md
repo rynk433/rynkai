@@ -40,8 +40,6 @@ await bot.connect();
 
 ## Plugin system
 
-Plugin format-nya sengaja mirip gaya rynk4: `{ name, command, category, execute() }`.
-
 ```ts
 // plugins/hello.ts
 import type { Plugin } from 'rynkai';
@@ -392,17 +390,6 @@ bot.on('error', (err, { source, message }) => {
 });
 ```
 
-## Hal yang perlu diperhatikan sebelum produksi
-
-rynkai membungkus Baileys dan menambah fitur di atasnya, tapi ada beberapa hal di luar kendali library ini yang tetap perlu kamu pertimbangkan sendiri:
-
-- **Baileys itu unofficial API** — bukan API resmi Meta/WhatsApp. Risiko akun kena banned/flag selalu ada terlepas library apapun yang dipakai di atasnya, terutama kalau kirim pesan masif/spam ke banyak nomor asing.
-- **`FileSessionStore` menyimpan kredensial sesi sebagai file JSON polos di disk**, tidak dienkripsi. Kalau server/device kamu diakses orang lain, sesi WA bisa dicuri. Untuk deployment produksi, pastikan folder `.rynkai-sessions/` dijaga (permission file, tidak masuk backup publik, dst), atau implement `SessionStore` custom yang enkripsi datanya.
-- **Plugin loader pakai `require()` dinamis** — kalau folder plugin bisa diisi orang lain (misal upload file dari user tanpa validasi), itu sama saja dengan remote code execution. Jangan expose folder plugin ke input yang tidak terpercaya.
-- **Belum ada integration test** terhadap koneksi WhatsApp asli (test suite yang ada murni unit test logic internal seperti parser/plugin loader/rate limiter) — karena butuh akun WA aktif buat testing end-to-end.
-
-Ini normal untuk semua project di atas Baileys, bukan hal yang bisa "diselesaikan" library — tapi penting untuk disadari sebelum menganggap sesuatu "aman" secara menyeluruh.
-
 ## Testing
 
 ```bash
@@ -411,30 +398,3 @@ npm run test:watch # mode watch
 ```
 
 Test coverage saat ini: `MessageParser`, `PluginLoader` (termasuk cooldown), `RateLimiter`, `Middleware` (compose/onion), `SendQueue`.
-
-## Status
-
-Masih tahap awal (0.1.0). Yang sudah ada:
-- [x] Core client (connect, reconnect, QR/pairing code)
-- [x] Normalized message parsing (text, media, quoted)
-- [x] Plugin loader + cooldown
-- [x] FileSessionStore default
-- [x] MessageBuilder helper
-- [x] Middleware/hooks sebelum plugin dieksekusi
-- [x] Rate limiter global (terpisah dari cooldown per-plugin)
-- [x] Media downloader helper (`client.downloadMedia()`)
-- [x] Message send queue dengan throttle (anti rate-limit WA)
-- [x] Presence helper (`sendTyping`, `sendPresence`)
-- [x] Group helpers (metadata, add/remove/promote/demote, join-leave event)
-- [x] Interactive messages (button, list, poll)
-- [x] Test suite (MessageParser, PluginLoader, RateLimiter, Middleware, SendQueue)
-- [x] GitHub Actions CI (auto build+test tiap push/PR, matrix Node 20 & 22)
-- [x] Message reactions (`react`, `removeReaction`) & read receipt (`markAsRead`, `autoRead`)
-- [x] Graceful shutdown (`disconnect()`) + reconnect exponential backoff dengan jitter
-- [x] Blocklist/whitelist user & grup built-in (`AccessControl`)
-- [x] Sticker maker (`createSticker`, `createAnimatedSticker`, `sendSticker`, `sendAnimatedSticker`)
-- [x] Contact/vcard sharing (`sendContact`, `sendContacts`, parsing kontak masuk)
-- [x] Deteksi pesan "lihat sekali" / view-once (`isViewOnce`)
-
-Belum ada (rencana selanjutnya):
-- [x] ~~CLI scaffold (`npx create-rynkai-bot`)~~ — sudah tersedia sebagai package terpisah
