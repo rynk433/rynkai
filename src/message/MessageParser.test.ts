@@ -117,4 +117,84 @@ describe('parseMessage', () => {
     const result = parseMessage(fakeRaw());
     expect(result.reaction).toBeNull();
   });
+
+  it('parse pesan contact tunggal (contactMessage)', () => {
+    const raw = fakeRaw({
+      message: {
+        contactMessage: {
+          displayName: 'Budi',
+          vcard: 'BEGIN:VCARD\nVERSION:3.0\nFN:Budi\nEND:VCARD',
+        },
+      },
+    });
+
+    const result = parseMessage(raw);
+
+    expect(result.type).toBe('contact');
+    expect(result.contacts).toHaveLength(1);
+    expect(result.contacts?.[0].displayName).toBe('Budi');
+    expect(result.contacts?.[0].vcard).toContain('FN:Budi');
+  });
+
+  it('parse pesan multi-contact (contactsArrayMessage)', () => {
+    const raw = fakeRaw({
+      message: {
+        contactsArrayMessage: {
+          contacts: [
+            { displayName: 'Budi', vcard: 'BEGIN:VCARD\nFN:Budi\nEND:VCARD' },
+            { displayName: 'Ani', vcard: 'BEGIN:VCARD\nFN:Ani\nEND:VCARD' },
+          ],
+        },
+      },
+    });
+
+    const result = parseMessage(raw);
+
+    expect(result.type).toBe('contact');
+    expect(result.contacts).toHaveLength(2);
+    expect(result.contacts?.map((c) => c.displayName)).toEqual(['Budi', 'Ani']);
+  });
+
+  it('contacts bernilai null untuk pesan biasa', () => {
+    const result = parseMessage(fakeRaw());
+    expect(result.contacts).toBeNull();
+  });
+
+  it('parse pesan view-once (viewOnceMessage) dan buka tipe konten aslinya', () => {
+    const raw = fakeRaw({
+      message: {
+        viewOnceMessage: {
+          message: { imageMessage: { caption: 'foto rahasia' } },
+        },
+      },
+    });
+
+    const result = parseMessage(raw);
+
+    expect(result.isViewOnce).toBe(true);
+    expect(result.type).toBe('image');
+    expect(result.text).toBe('foto rahasia');
+  });
+
+  it('parse pesan view-once varian V2 (viewOnceMessageV2)', () => {
+    const raw = fakeRaw({
+      message: {
+        viewOnceMessageV2: {
+          message: { videoMessage: { caption: 'video rahasia' } },
+        },
+      },
+    });
+
+    const result = parseMessage(raw);
+
+    expect(result.isViewOnce).toBe(true);
+    expect(result.type).toBe('video');
+    expect(result.text).toBe('video rahasia');
+  });
+
+  it('isViewOnce bernilai false untuk pesan media biasa (bukan view-once)', () => {
+    const raw = fakeRaw({ message: { imageMessage: { caption: 'foto biasa' } } });
+    const result = parseMessage(raw);
+    expect(result.isViewOnce).toBe(false);
+  });
 });

@@ -14,6 +14,8 @@ import pino from 'pino';
 import type { NormalizedMessage, RynkaiConfig, PluginContext } from '../types';
 import { FileSessionStore } from '../session/FileSessionStore';
 import { parseMessage } from '../message/MessageParser';
+import { MessageBuilder } from '../message/MessageBuilder';
+import type { VCardOptions } from '../message/vcard';
 import { PluginLoader } from '../plugin/PluginLoader';
 import { compose, type Middleware } from './Middleware';
 import { RateLimiter } from './RateLimiter';
@@ -292,6 +294,16 @@ export class Client extends EventEmitter {
   async sendAnimatedSticker(chatId: string, videoBuffer: Buffer, options?: StickerOptions): Promise<void> {
     const sticker = await createAnimatedSticker(videoBuffer, options);
     await this.send(chatId, { sticker });
+  }
+
+  /** Bagikan satu kontak (nama + nomor telepon) sebagai vcard ke sebuah chat. */
+  async sendContact(chatId: string, contact: VCardOptions): Promise<void> {
+    await this.send(chatId, MessageBuilder.contact(contact));
+  }
+
+  /** Bagikan beberapa kontak sekaligus dalam satu pesan. */
+  async sendContacts(chatId: string, contacts: VCardOptions[]): Promise<void> {
+    await this.send(chatId, MessageBuilder.contacts(contacts));
   }
 
   /** Beri reaction emoji ke sebuah pesan. Lewat send queue juga (throttle sama seperti send/reply). */

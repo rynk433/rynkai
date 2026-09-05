@@ -64,6 +64,52 @@ await bot.plugins.loadFromDirectory('./plugins');
 await bot.connect();
 ```
 
+## Deteksi pesan "lihat sekali" (view once)
+
+```ts
+bot.on('message', async (msg) => {
+  if (msg.isViewOnce) {
+    console.log(`Pesan view-once masuk, tipe aslinya: ${msg.type}`); // image/video/dst
+
+    // Download medianya segera saat masuk — berguna kalau mau menyimpan
+    // sebelum "kesempatan lihat" terpakai di WhatsApp resmi.
+    const buffer = await bot.downloadMedia(msg);
+    // simpan buffer, forward ke chat lain, dst — terserah kebutuhanmu
+  }
+});
+```
+
+`msg.type` tetap menunjukkan tipe konten aslinya (`'image'`, `'video'`, dst) — `isViewOnce` cuma penanda tambahan, bukan tipe terpisah. `bot.downloadMedia()` bekerja normal untuk pesan view-once, tidak perlu penanganan khusus.
+
+> Perlu diingat secara etis: fitur ini murni teknis (baca metadata & media yang memang terkirim ke akun bot). Pemakaiannya tetap tanggung jawabmu — hormati privasi orang yang mengirim pesan view-once.
+
+## Contact / vcard sharing
+
+```ts
+import { MessageBuilder, extractPhoneFromVCard } from 'rynkai';
+await bot.sendContact(chatId, { name: 'Budi', phone: '628123456789' });
+
+// Atau lewat MessageBuilder kalau butuh payload-nya langsung
+await bot.send(chatId, MessageBuilder.contact({ name: 'Budi', phone: '628123456789', organization: 'PT Maju' }));
+
+// Kirim beberapa kontak sekaligus
+await bot.sendContacts(chatId, [
+  { name: 'Budi', phone: '628123456789' },
+  { name: 'Ani', phone: '628987654321' },
+]);
+
+// Terima kontak yang di-share orang lain ke bot
+bot.on('message', (msg) => {
+  if (msg.type === 'contact' && msg.contacts) {
+    for (const c of msg.contacts) {
+      console.log(c.displayName, extractPhoneFromVCard(c.vcard));
+    }
+  }
+});
+```
+
+Nomor telepon otomatis dibersihkan dari spasi/strip/tanda plus — cukup isi `phone` dengan format apapun asal ada kode negaranya (`'+62 812-3456-789'` atau `'628123456789'` sama-sama valid).
+
 ## Sticker maker
 
 Butuh package tambahan:
@@ -387,6 +433,8 @@ Masih tahap awal (0.1.0). Yang sudah ada:
 - [x] Graceful shutdown (`disconnect()`) + reconnect exponential backoff dengan jitter
 - [x] Blocklist/whitelist user & grup built-in (`AccessControl`)
 - [x] Sticker maker (`createSticker`, `createAnimatedSticker`, `sendSticker`, `sendAnimatedSticker`)
+- [x] Contact/vcard sharing (`sendContact`, `sendContacts`, parsing kontak masuk)
+- [x] Deteksi pesan "lihat sekali" / view-once (`isViewOnce`)
 
 Belum ada (rencana selanjutnya):
 - [x] ~~CLI scaffold (`npx create-rynkai-bot`)~~ — sudah tersedia sebagai package terpisah

@@ -31,10 +31,21 @@ export interface NormalizedMessage {
   fromMe: boolean;
   /** Unix timestamp (detik) */
   timestamp: number;
+  /**
+   * true kalau ini pesan "lihat sekali" (view once) — image/video yang cuma
+   * bisa dibuka sekali di WhatsApp resmi. `type` tetap menunjukkan tipe
+   * konten aslinya (image/video/dst), field ini cuma penanda tambahan.
+   */
+  isViewOnce: boolean;
   /** Pesan yang di-quote/reply, kalau ada (sudah dinormalisasi juga, minus quotedMessage-nya sendiri) */
   quoted: Omit<NormalizedMessage, 'quoted'> | null;
   /** Detail reaction, terisi hanya kalau type === 'reaction' (orang lain react ke suatu pesan) */
   reaction: { targetMessageId: string; emoji: string } | null;
+  /**
+   * Kontak yang di-share (satu atau lebih), terisi hanya kalau type === 'contact'.
+   * Setiap entry punya vcard mentah — pakai extractPhoneFromVCard() untuk ambil nomornya.
+   */
+  contacts: { displayName: string; vcard: string }[] | null;
   /** Raw proto message asli dari Baileys, buat kasus yang butuh akses low-level */
   raw: proto.IWebMessageInfo;
 }

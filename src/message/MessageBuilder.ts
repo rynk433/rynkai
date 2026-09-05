@@ -1,4 +1,5 @@
 import type { AnyMessageContent } from '@whiskeysockets/baileys';
+import { buildVCard, type VCardOptions } from './vcard';
 
 /**
  * Kumpulan helper buat bikin payload pesan dengan cara yang lebih deklaratif
@@ -80,5 +81,25 @@ export const MessageBuilder = {
       buttonText,
       sections,
     } as AnyMessageContent;
+  },
+
+  /** Bagikan satu kontak (nama + nomor telepon) sebagai vcard. */
+  contact(options: VCardOptions): AnyMessageContent {
+    return {
+      contacts: {
+        displayName: options.name,
+        contacts: [{ vcard: buildVCard(options) }],
+      },
+    };
+  },
+
+  /** Bagikan beberapa kontak sekaligus dalam satu pesan. */
+  contacts(list: VCardOptions[]): AnyMessageContent {
+    return {
+      contacts: {
+        displayName: `${list.length} kontak`,
+        contacts: list.map((options) => ({ vcard: buildVCard(options) })),
+      },
+    };
   },
 };
