@@ -62,6 +62,29 @@ await bot.plugins.loadFromDirectory('./plugins');
 await bot.connect();
 ```
 
+## Broadcast ke banyak chat
+
+```ts
+import { MessageBuilder } from 'rynkai';
+
+const results = await bot.broadcast(
+  ['628111111111@s.whatsapp.net', '628222222222@s.whatsapp.net'],
+  MessageBuilder.text('Pengumuman: maintenance jam 10 malam ini.'),
+  {
+    onProgress: ({ sent, total, current }) => {
+      console.log(`${sent}/${total} — ${current.chatId}: ${current.success ? 'OK' : 'GAGAL'}`);
+    },
+  }
+);
+
+const gagal = results.filter((r) => !r.success);
+console.log(`${gagal.length} chat gagal dikirim.`);
+```
+
+Tiap pengiriman tetap lewat **send queue** yang sama (throttle dari config `sendQueue` tetap berlaku — lihat bagian di atas), jadi broadcast tidak langsung membanjiri WA dalam waktu bersamaan. Satu chat gagal (nomor tidak valid, dsb) tidak menghentikan pengiriman ke chat lainnya.
+
+> ⚠️ **Pakai dengan hati-hati.** Mengirim pesan masif ke banyak nomor asing (terutama yang belum pernah chat dengan bot) meningkatkan risiko akun WA kena flag/banned. Ini risiko bawaan ekosistem WhatsApp/Baileys, bukan sesuatu yang bisa dicegah sepenuhnya oleh library manapun — pertimbangkan cuma broadcast ke user yang sudah pernah interaksi dengan bot.
+
 ## Deteksi pesan "lihat sekali" (view once)
 
 ```ts
@@ -142,8 +165,6 @@ await bot.send(chatId, MessageBuilder.sticker(stickerBuffer));
 await bot.sendAnimatedSticker(chatId, videoBuffer, { packname: 'Bot Aku' });
 // otomatis dipotong maksimal 6 detik pertama
 ```
-
-> **Catatan kompatibilitas:** `sharp` adalah native binding (butuh libvips terkompilasi). Di kebanyakan platform (Linux x64/arm64 server, macOS, Windows, GitHub Actions) ini terinstall otomatis lewat prebuilt binary. Tapi di **Termux/Android ARM64**, prebuilt binary sharp sering tidak tersedia — kalau kamu develop bot di HP lewat Termux, fitur sticker gambar mungkin tidak berfungsi sampai kamu install libvips manual (lihat [dokumentasi instalasi sharp](https://sharp.pixelplumbing.com/install)) atau pakai varian WASM-nya. Ini bukan bug di rynkai, melainkan keterbatasan platform Termux itu sendiri.
 
 ## Blocklist / whitelist user & grup
 

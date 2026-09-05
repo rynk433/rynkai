@@ -23,6 +23,7 @@ import { SendQueue } from './SendQueue';
 import { Backoff } from './Backoff';
 import { downloadMedia } from '../media/downloadMedia';
 import { createSticker, createAnimatedSticker, type StickerOptions } from '../sticker/createSticker';
+import { runBroadcast, type BroadcastResult, type BroadcastProgress } from './broadcast';
 
 export interface GroupParticipantsEvent {
   groupId: string;
@@ -304,6 +305,34 @@ export class Client extends EventEmitter {
   /** Bagikan beberapa kontak sekaligus dalam satu pesan. */
   async sendContacts(chatId: string, contacts: VCardOptions[]): Promise<void> {
     await this.send(chatId, MessageBuilder.contacts(contacts));
+  }
+
+  /**
+   * Kirim pesan yang sama ke banyak chat sekaligus, dengan progress callback.
+   * Tiap pengiriman tetap lewat send queue yang sama (throttle dari config
+   * `sendQueue` tetap berlaku), jadi broadcast tidak langsung membanjiri WA
+   * dalam waktu bersamaan. Satu chat gagal tidak menghentikan chat lainnya.
+   *
+   * ```ts
+   * const results = await bot.broadcast(
+   *   ['628111@s.whatsapp.net', '628222@s.whatsapp.net'],
+   *   MessageBuilder.text('Pengumuman penting!'),
+   *   { onProgress: ({ sent, total }) => console.log(`${sent}/${total}`) }
+   * );
+   * const gagal = results.filter((r) => !r.success);
+   * ```
+   *
+   * ⚠️ Pakai dengan hati-hati: mengirim pesan masif ke banyak nomor asing
+   * (terutama yang belum pernah chat dengan bot) meningkatkan risiko akun
+   * WA kena flag/banned. Ini risiko bawaan ekosistem WhatsApp, bukan sesuatu
+   * yang bisa dicegah sepenuhnya oleh library manapun.
+   */
+  async broadcast(
+    chatIds: string[],
+    content: AnyMessageContent,
+    options: { onProgress?: (progress: BroadcastProgress) => void } = {}
+  ): Promise<BroadcastResult[]> {
+    return runBroadcast(chatIds, (chatId) => this.send(chatId, content), options.onProgress);
   }
 
   /** Beri reaction emoji ke sebuah pesan. Lewat send queue juga (throttle sama seperti send/reply). */

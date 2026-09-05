@@ -10,6 +10,7 @@ export { AccessControl } from './core/AccessControl';
 export { downloadMedia } from './media/downloadMedia';
 export { createSticker, createAnimatedSticker } from './sticker/createSticker';
 export { buildVCard, extractPhoneFromVCard } from './message/vcard';
+export { runBroadcast } from './core/broadcast';
 
 export type {
   NormalizedMessage,
@@ -26,4 +27,5 @@ export type { BackoffConfig } from './core/Backoff';
 export type { AccessControlConfig, AccessControlMode } from './core/AccessControl';
 export type { StickerOptions } from './sticker/createSticker';
 export type { VCardOptions } from './message/vcard';
+export type { BroadcastResult, BroadcastProgress } from './core/broadcast';
 export type { GroupParticipantsEvent, RynkaiEvents } from './core/Client';
